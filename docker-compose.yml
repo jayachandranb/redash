@@ -1,0 +1,88 @@
+version: '2'
+x-redash-service:
+    image: 'redash/redash:anz'
+    depends_on:
+        - postgres
+        - redis
+    env_file: BASEPATH/env
+    restart: always
+services:
+    server:
+        image: 'redash/redash:anz'
+        depends_on:
+            - postgres
+            - redis
+        env_file: BASEPATH/env
+        restart: always
+        command: server
+        ports:
+            - '5000:5000'
+        environment:
+            REDASH_WEB_WORKERS: 4
+    scheduler:
+        image: 'redash/redash:anz'
+        depends_on:
+            - postgres
+            - redis
+        env_file: BASEPATH/env
+        restart: always
+        command: scheduler
+        environment:
+            QUEUES: celery
+            WORKERS_COUNT: 1
+    scheduled_worker:
+        image: 'redash/redash:anz'
+        depends_on:
+            - postgres
+            - redis
+        env_file: BASEPATH/env
+        restart: always
+        command: worker
+        environment:
+            QUEUES: 'scheduled_queries,schemas'
+            WORKERS_COUNT: 1
+    adhoc_worker:
+        image: 'redash/redash:anz'
+        depends_on:
+            - postgres
+            - redis
+        env_file: BASEPATH/env
+        restart: always
+        command: worker
+        environment:
+            QUEUES: queries
+            WORKERS_COUNT: 2
+    redis:
+        image: 'redis:3.0-alpine'
+        restart: always
+    postgres:
+        image: 'postgres:9.5.6-alpine'
+        env_file: BASEPATH/env
+        volumes:
+            - 'BASEPATH/postgres-data:/var/lib/postgresql/data'
+        restart: always
+    nginx:
+        image: 'redash/nginx:latest'
+        ports:
+            - '80:80'
+        depends_on:
+            - server
+        links:
+            - 'server:redash'
+        restart: always
+    mongo:
+        image: mongo
+        restart: always
+        ports:
+            - '27017:27017'
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: passw0rd
+    mongo-express:
+        image: mongo-express
+        restart: always
+        ports:
+            - '8081:8081'
+        environment:
+            ME_CONFIG_MONGODB_ADMINUSERNAME: root
+            ME_CONFIG_MONGODB_ADMINPASSWORD: passw0rd
